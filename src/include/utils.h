@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 
+#define MAX_HISTORY_SIZE 100
+#define MAX_INPUT_SIZE 1024
+
 typedef struct Command Command;
 
 struct Command {

@@ -250,7 +250,6 @@ void test_execute_builtin() {
   getcwd(current_dir, sizeof(current_dir));
   assert(strcmp(current_dir, "/tmp") == 0);
 
-  // restore initial directory
   chdir(original_dir);
 
   int result_exit = executable_builtin(args_exit, 1);

@@ -1,6 +1,7 @@
 #include "include/builtins.h"
 #include "include/utils.h"
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,10 +11,20 @@
 
 #define MAX_INPUT_SIZE 1024
 
+void sigint_handler(int signo) {
+  printf("\n");
+  fflush(stdout);
+}
+
 int main() {
   char input[MAX_INPUT_SIZE];
   Command *cmd;
   int status;
+
+  if (signal(SIGINT, sigint_handler) == SIG_ERR) {
+    perror("signal failed");
+    exit(EXIT_FAILURE);
+  }
 
   while (1) {
     printf("cshell> ");
