@@ -6,15 +6,6 @@
 #define MAX_ARGS 64
 #define DELIMITERS " \t\r\n\a" // Whitespace delimeters
 
-struct Command {
-  char **args;
-  int argc;
-  char *input_file;
-  char *output_file;
-  int append;
-  int next;
-};
-
 Command *parse_command(char *input) {
   Command *head = NULL;
   Command *tail = NULL;
@@ -26,17 +17,13 @@ Command *parse_command(char *input) {
     exit(EXIT_FAILURE);
   }
 
-  Command *cmd = malloc(sizeof(Command));
-  if (!cmd) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
-  cmd->args = malloc(MAX_ARGS * sizeof(char *));
-  if (!cmd->args) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
   token = strtok(input_copy, DELIMITERS);
+
+  if (token == NULL) { // Handle empty input *before* allocating a Command
+    free(input_copy);
+    return NULL;
+  }
+
   while (token != NULL) {
     Command *cmd = malloc(sizeof(Command));
     if (!cmd) {
@@ -53,16 +40,18 @@ Command *parse_command(char *input) {
     cmd->append = 0;
     cmd->argc = 0;
     cmd->next = NULL;
+
+    // Parse tokens for this command
     while (token != NULL) {
       if (strcmp(token, "|") == 0) {
         token = strtok(NULL, DELIMITERS);
-        break;
+        break; // Exit inner loop, proceed to next command
       } else if (strcmp(token, ">") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
           print_error("Syntax Error: Expected file name after >");
           free_command(cmd);
-          free_command(head);
+          free_command(head); // Free previously allocated commands
           free(input_copy);
           return NULL;
         }
@@ -71,23 +60,23 @@ Command *parse_command(char *input) {
           perror("strdup failed");
           exit(EXIT_FAILURE);
         }
-        token = strtok(NULL, DELIMITERS);
-        break;
+        token = strtok(NULL, DELIMITERS); // Get next token *after* filename
+        break;                            // Stop parsing arguments after >
       } else if (strcmp(token, "<") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
           print_error("Syntax Error: Expected file name after <");
           free_command(cmd);
-          free_command(head);
+          free_command(head); // Free previously allocated commands
           free(input_copy);
           return NULL;
         }
         cmd->input_file = strdup(token);
         if (!cmd->input_file) {
           perror("strdup failed");
-          exit(EXIT_FAILURE); // Or handle memory cleanup before exit
+          exit(EXIT_FAILURE);
         }
-        token = strtok(NULL, DELIMITERS);
+        token = strtok(NULL, DELIMITERS); // Continue parsing arguments
       } else if (strcmp(token, ">>") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
@@ -100,11 +89,12 @@ Command *parse_command(char *input) {
         cmd->output_file = strdup(token);
         if (!cmd->output_file) {
           perror("strdup failed");
-          exit(EXIT_FAILURE); // Or handle memory cleanup before exit
+          exit(EXIT_FAILURE);
         }
         cmd->append = 1;
-        token = strtok(NULL, DELIMITERS);
-        break;
+        token = strtok(NULL, DELIMITERS); // Get next token *after* the filename
+        break;                            // Stop parsing arguments after >>
+
       } else {
         if (cmd->argc < MAX_ARGS - 1) {
           cmd->args[cmd->argc++] = strdup(token);
@@ -115,14 +105,14 @@ Command *parse_command(char *input) {
         } else {
           print_error("Too many arguments");
           free_command(cmd);
-          free_command(head);
+          free_command(head); // Free previously allocated commands
           free(input_copy);
           return NULL;
         }
         token = strtok(NULL, DELIMITERS);
       }
     }
-    cmd->args[cmd->argc] = NULL;
+    cmd->args[cmd->argc] = NULL; // Always null-terminate args
 
     if (head == NULL) {
       head = cmd;
@@ -131,9 +121,13 @@ Command *parse_command(char *input) {
       tail->next = cmd;
       tail = cmd;
     }
+    // If token is currently NULL, we don't want to call strtok again in the
+    // outer loop. We only want to call strtok if there are more commands to
+    // process (indicated by token not being NULL after parsing a pipe)
   }
+
   free(input_copy);
-  return cmd;
+  return head;
 }
 
 void free_command(Command *cmd) {

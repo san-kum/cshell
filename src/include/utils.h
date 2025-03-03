@@ -3,14 +3,16 @@
 
 #include <stdio.h>
 
-typedef struct {
+typedef struct Command Command;
+
+struct Command {
   char **args;
   int argc;
   char *input_file;
   char *output_file;
   int append;
-  char *next;
-} Command;
+  Command *next;
+};
 
 Command *parse_command(char *input);
 void free_command(Command *cmd);
