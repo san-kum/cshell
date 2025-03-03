@@ -1,5 +1,6 @@
 #include "include/builtins.h"
 #include "include/utils.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,8 +12,7 @@
 
 int main() {
   char input[MAX_INPUT_SIZE];
-  char **args;
-  int argc;
+  Command *cmd;
   int status;
 
   while (1) {
@@ -28,10 +28,9 @@ int main() {
         exit(EXIT_FAILURE);
       }
     }
-    args = parse_command(input, &argc);
-
-    if (argc > 0) {
-      int builtin_result = executable_builtin(args, argc);
+    cmd = parse_command(input);
+    if (cmd->argc > 0) {
+      int builtin_result = executable_builtin(cmd->args, cmd->argc);
       if (builtin_result == -1) {
         pid_t pid = fork();
 
@@ -39,7 +38,27 @@ int main() {
           perror("fork failed");
           exit(EXIT_FAILURE);
         } else if (pid == 0) {
-          if (execvp(args[0], args) == -1) {
+          if (cmd->input_file) {
+            int fd = open(cmd->input_file, O_RDONLY);
+            if (fd == -1) {
+              perror("open failed");
+              exit(EXIT_FAILURE);
+            }
+            dup2(fd, STDIN_FILENO);
+            close(fd);
+          }
+          if (cmd->output_file) {
+            int flags = O_WRONLY | O_CREAT;
+            flags |= (cmd->append) ? O_APPEND : O_TRUNC;
+            int fd = open(cmd->output_file, flags, 0644);
+            if (fd == -1) {
+              perror("open failed");
+              exit(EXIT_FAILURE);
+            }
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+          }
+          if (execvp(cmd->args[0], cmd->args) == -1) {
             perror("execvp failed");
             exit(EXIT_FAILURE);
           }
@@ -51,7 +70,7 @@ int main() {
         }
       }
     }
-    free_args(args);
+    free_command(cmd);
   }
   return 0;
 }
