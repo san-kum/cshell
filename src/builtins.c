@@ -12,6 +12,11 @@ int builtin_cd(char **args) {
       print_error("HOME environment variable not set.");
       return 1;
     }
+    if (chdir(home_dir) != 0) {
+      perror("chdir faile");
+      return 1;
+    }
+  } else {
     if (chdir(args[1]) != 0) {
       perror("chdir failed");
       return 1;
@@ -20,12 +25,27 @@ int builtin_cd(char **args) {
   return 0;
 }
 
-int builtin_exit(char **args) { exit(0); }
+int builtin_exit(char **args) {
+  (void)args;
+  exit(0);
+}
+
+int builtin_help(char **args) {
+  printf("cshell - A simple shell written in C\n");
+  printf("Built-in commands:\n");
+  printf("  cd <directory>   - Change the current working directory.\n");
+  printf("  exit             - Exit the shell.\n");
+  printf("  help             - Display this help message.\n");
+  printf("Other commands are executed as external programs.\n");
+  return 1;
+}
 
 int executable_builtin(char **args, int argc) {
   if (strcmp(args[0], "cd") == 0)
     return builtin_cd(args);
   else if (strcmp(args[0], "exit") == 0)
-    return builtin_cd(args);
+    return builtin_exit(args);
+  else if (strcmp(args[0], "help") == 0)
+    return builtin_help(args);
   return -1;
 }
