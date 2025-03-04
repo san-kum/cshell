@@ -5,6 +5,15 @@
 #include <string.h>
 #include <unistd.h>
 
+extern char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
+extern int history_count;
+
+int builtin_history(char **args) {
+  (void)args;
+  print_history(history, history_count);
+  return 0;
+}
+
 int builtin_cd(char **args) {
   if (args[1] == NULL) {
     char *home_dir = getenv("HOME");
@@ -36,6 +45,7 @@ int builtin_help(char **args) {
   printf("  cd <directory>   - Change the current working directory.\n");
   printf("  exit             - Exit the shell.\n");
   printf("  help             - Display this help message.\n");
+  printf("  history          - Display command history.\n");
   printf("Other commands are executed as external programs.\n");
   return 1;
 }
@@ -47,5 +57,7 @@ int executable_builtin(char **args, int argc) {
     return builtin_exit(args);
   else if (strcmp(args[0], "help") == 0)
     return builtin_help(args);
+  else if (strcmp(args[0], "history") == 0)
+    return builtin_history(args);
   return -1;
 }

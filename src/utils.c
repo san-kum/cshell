@@ -174,18 +174,93 @@ char *get_history_entry(char (*history)[1024], int history_count, int index) {
   if (history_count == 0)
     return NULL;
 
-  int real_index = index % MAX_HISTORY_SIZE;
-  if (real_index < 0 || real_index >= history_count)
-    return NULL;
-
+  int real_index;
   if (history_count <= MAX_HISTORY_SIZE) {
     if (index < 0 || index >= history_count)
       return NULL;
+    real_index = index;
   } else {
-    int oldest_index = (history_count) % MAX_HISTORY_SIZE;
-    if (index < history_count - MAX_HISTORY_SIZE)
+    if (index < history_count - MAX_HISTORY_SIZE || index >= history_count)
       return NULL;
+    real_index = (index + MAX_HISTORY_SIZE) % MAX_HISTORY_SIZE;
   }
 
   return history[real_index];
+}
+
+int get_input(char *buffer, char (*history)[1024], int *history_count,
+              int *current_history_index) {
+  static struct termios old_termios, new_termios;
+
+  tcgetattr(STDIN_FILENO, &old_termios);
+  new_termios = old_termios;
+
+  new_termios.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
+  int i = 0;
+  int ch;
+  *current_history_index = *history_count;
+
+  while (1) {
+    ch = getchar();
+
+    if (ch == EOF || ch == '\n') {
+      buffer[i] = '\0';
+      break;
+    } else if (ch == 127 || ch == 8) {
+      if (i > 0) {
+        printf("\b  \b");
+        fflush(stdout);
+        i--;
+      }
+    } else if (ch == 27) {
+      if (getchar() == 91) {
+        int arrow_key = getchar();
+        if (arrow_key == 65) {
+          if (*current_history_index > 0 && *history_count > 0) {
+            (*current_history_index)--;
+            printf("\033[2K\r");
+            printf("cshell> ");
+            char *history_entry = get_history_entry(history, *history_count,
+                                                    *current_history_index);
+            if (history_entry) {
+              strcpy(buffer, history_entry);
+              i = strlen(buffer);
+              printf("%s", buffer);
+              fflush(stdout);
+            } else {
+              (*current_history_index)++;
+            }
+          }
+        } else if (arrow_key == 66) {
+          if (*current_history_index < *history_count) {
+            (*current_history_index)++;
+            printf("\033[2K\r");
+            printf("cshell> ");
+            if (*current_history_index == *history_count) {
+              buffer[0] = '\0';
+              i = 0;
+              printf("%s", buffer);
+              fflush(stdout);
+            } else {
+              (*current_history_index)--;
+            }
+          }
+        }
+      }
+    } else if (isprint(ch)) {
+      buffer[i++] = ch;
+      putchar(ch);
+      fflush(stdout);
+
+      if (i >= MAX_INPUT_SIZE - 1) {
+        print_error("Maximum length exceeded");
+        buffer[0] = '\0';
+        i = 0;
+        break;
+      }
+    }
+  }
+  tcsetattr(STDIN_FILENO, TCSANOW, &old_termios);
+  return i;
 }

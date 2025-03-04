@@ -12,6 +12,7 @@
 #define MAX_INPUT_SIZE 1024
 
 void sigint_handler(int signo) {
+  (void)signo;
   printf("\n");
   fflush(stdout);
 }
@@ -21,6 +22,11 @@ int main() {
   Command *cmd;
   int status;
 
+  // --- Command History ---
+  char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
+  int history_count = 0;
+  int current_history_index = 0;
+
   if (signal(SIGINT, sigint_handler) == SIG_ERR) {
     perror("signal failed");
     exit(EXIT_FAILURE);
@@ -29,21 +35,19 @@ int main() {
   while (1) {
     printf("cshell> ");
     fflush(stdout);
-
-    if (fgets(input, MAX_INPUT_SIZE, stdin) == NULL) {
-      if (feof(stdin)) {
-        printf("\n");
-        break;
-      } else {
-        perror("fgets failed");
-        exit(EXIT_FAILURE);
-      }
+    if (get_input(input, history, &history_count, &current_history_index) ==
+            0 &&
+        feof(stdin)) {
+      printf("\n");
+      break;
+    }
+    if (strlen(input) > 0) {
+      add_to_history(input, history, &history_count, &current_history_index);
     }
 
     cmd = parse_command(input);
-    if (!cmd) {
+    if (!cmd)
       continue;
-    }
 
     Command *current = cmd;
     int input_fd = 0;
