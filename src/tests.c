@@ -1,4 +1,5 @@
 #include "include/builtins.h"
+#include "include/history.h"
 #include "include/utils.h"
 #include <assert.h>
 #include <fcntl.h>

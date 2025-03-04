@@ -1,10 +1,10 @@
 #include "include/builtins.h"
+#include "include/history.h"
 #include "include/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 
 int builtin_history(char **args) {
   (void)args;

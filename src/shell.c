@@ -1,4 +1,5 @@
 #include "include/builtins.h"
+#include "include/history.h"
 #include "include/utils.h"
 #include <fcntl.h>
 #include <signal.h>
@@ -10,9 +11,6 @@
 #include <unistd.h>
 
 #define MAX_INPUT_SIZE 1024
-
-char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
-int history_count = 0;
 
 void sigint_handler(int signo) {
   (void)signo;
