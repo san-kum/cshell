@@ -1,5 +1,6 @@
 #include "include/builtins.h"
 #include "include/history.h"
+#include "include/scripting.h"
 #include "include/utils.h"
 #include <fcntl.h>
 #include <signal.h>
@@ -72,6 +73,28 @@ int main() {
     }
     if (strlen(input) > 0) {
       add_to_history(input, history, &history_count, &current_history_index);
+    }
+
+    // Check if input is a script
+    if (strncmp(input, "run ", 4) == 0) {
+      char *script_filename = input + 4;
+      script_filename[strcspn(script_filename, "\n")] = 0;
+      FILE *script_file = fopen(script_filename, "r");
+      if (script_file) {
+        char script_content[4096] = {0};
+        size_t bytes_read =
+            fread(script_content, 1, sizeof(script_content) - 1, script_file);
+        fclose(script_file);
+
+        ScriptElement *script = parse_script(script_content);
+        if (script) {
+          execute_script(script);
+          free_script_element(script);
+        }
+      } else {
+        perror("Error opening script file.");
+      }
+      continue;
     }
 
     cmd = parse_command(input);

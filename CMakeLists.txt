@@ -18,6 +18,7 @@ add_executable(cshell
     src/builtins.c
     src/utils.c
     src/history.c
+    src/scripting.c
 )
 
 target_include_directories(cshell
@@ -33,6 +34,7 @@ add_executable(cshell_tests
     src/builtins.c
     src/utils.c
     src/history.c
+    src/scripting.c
 )
 
 target_include_directories(cshell_tests
