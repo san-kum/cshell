@@ -11,11 +11,32 @@
 #include <unistd.h>
 
 #define MAX_INPUT_SIZE 1024
+pid_t foreground_pid = 0;
 
 void sigint_handler(int signo) {
   (void)signo;
   printf("\n");
+  if (foreground_pid > 0)
+    kill(foreground_pid, SIGINT);
   fflush(stdout);
+}
+
+void sigchld_handler(int signo) {
+  (void)signo;
+  int status;
+  pid_t pid;
+  while ((pid == waitpid(-1, &status, WNOHANG)) > 0) {
+  }
+}
+
+void sigtstp_handler(int signo) {
+
+  (void)signo;
+  if (foreground_pid > 0) {
+    kill(foreground_pid, SIGTSTP);
+    printf("\nStopped: %d\n", (int)foreground_pid);
+    fflush(stdout);
+  }
 }
 
 int main() {
@@ -28,6 +49,15 @@ int main() {
 
   if (signal(SIGINT, sigint_handler) == SIG_ERR) {
     perror("signal failed");
+    exit(EXIT_FAILURE);
+  }
+  if (signal(SIGCHLD, sigchld_handler) == SIG_ERR) {
+    perror("signal (SIGCHLD) failed");
+    exit(EXIT_FAILURE);
+  }
+
+  if (signal(SIGTSTP, sigtstp_handler) == SIG_ERR) {
+    perror("signal (SIGTSTP) failed");
     exit(EXIT_FAILURE);
   }
 
@@ -113,6 +143,10 @@ int main() {
         }
 
       } else {
+        if (current == cmd) {
+          foreground_pid = pid;
+          setpgid(pid, pid);
+        }
         if (input_fd != 0) {
           close(input_fd);
         }
@@ -124,9 +158,12 @@ int main() {
         current = current->next;
       }
     }
+    (void)status;
 
-    while (wait(NULL) > 0)
-      ;
+    if (foreground_pid > 0) {
+      waitpid(foreground_pid, &status, WUNTRACED);
+      foreground_pid = 0;
+    }
 
     free_command(cmd); // Free the entire command list
   }
