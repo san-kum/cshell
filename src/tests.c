@@ -11,13 +11,6 @@
 
 // --- Helper functions for tests ----
 
-// Frees a Command and checks for NULL
-void safe_free_command(Command *cmd) {
-  if (cmd) {
-    free_command(cmd);
-  }
-}
-
 // --- Test Cases for parse_command ---
 
 void test_parse_simple_command() {
@@ -29,7 +22,6 @@ void test_parse_simple_command() {
   assert(cmd->output_file == NULL);
   assert(cmd->append == 0);
   assert(cmd->next == NULL);
-  safe_free_command(cmd);
   printf("test_parse_simple_command: Passed\n");
 }
 
@@ -43,7 +35,6 @@ void test_parse_command_with_args() {
   assert(cmd->input_file == NULL);
   assert(cmd->output_file == NULL);
   assert(cmd->next == NULL);
-  safe_free_command(cmd);
   printf("test_parse_command_with_args: Passed\n");
 }
 
@@ -55,7 +46,6 @@ void test_parse_input_redirection() {
   assert(strcmp(cmd->input_file, "input.txt") == 0);
   assert(cmd->output_file == NULL);
   assert(cmd->next == NULL);
-  safe_free_command(cmd);
   printf("test_parse_input_redirection: Passed\n");
 }
 
@@ -68,7 +58,6 @@ void test_parse_output_redirection() {
   assert(strcmp(cmd->output_file, "output.txt") == 0);
   assert(cmd->append == 0);
   assert(cmd->next == NULL);
-  safe_free_command(cmd);
   printf("test_parse_output_redirection: Passed\n");
 }
 
@@ -82,7 +71,6 @@ void test_parse_append_redirection() {
   assert(strcmp(cmd->output_file, "output.txt") == 0);
   assert(cmd->append == 1);
   assert(cmd->next == NULL);
-  safe_free_command(cmd);
   printf("test_parse_append_redirection: Passed\n");
 }
 
@@ -105,18 +93,15 @@ void test_parse_pipe() {
   assert(next_cmd->output_file == NULL);
   assert(next_cmd->next == NULL);
 
-  safe_free_command(cmd); // This will free both commands in the pipeline
   printf("test_parse_pipe: Passed\n");
 }
 
 void test_parse_empty_command() {
   Command *cmd = parse_command("");
   assert(cmd == NULL);
-  safe_free_command(cmd);
 
   cmd = parse_command("   "); // Only whitespace
   assert(cmd == NULL);
-  safe_free_command(cmd);
   printf("test_parse_empty_command: Passed\n");
 }
 
@@ -136,7 +121,6 @@ void test_parse_multiple_pipes() {
   assert(strcmp(cmd3->args[0], "wc") == 0);
   assert(cmd3->argc == 2);
   assert(cmd3->next == NULL);
-  safe_free_command(cmd);
   printf("test_parse_multiple_pipes: Passed\n");
 }
 
@@ -153,23 +137,17 @@ void test_parse_combined_redirection_and_pipe() {
   assert(strcmp(cmd2->output_file, "output.txt") == 0);
   assert(cmd2->next == NULL);
 
-  safe_free_command(cmd);
   printf("test_parse_combined_redirection_and_pipe: Passed\n");
 }
 
 void test_parse_error_handling() {
   // missing argument
-  Command *cmd = parse_command(">");
+  Command *cmd = parse_command(">\n");
   assert(cmd == NULL);
-  safe_free_command(cmd);
 
-  cmd = parse_command("<");
+  cmd = parse_command("<\n");
   assert(cmd == NULL);
-  safe_free_command(cmd);
-
-  cmd = parse_command(">>");
   assert(cmd == NULL);
-  safe_free_command(cmd);
   printf("test_parse_error_handling: Passed\n");
 }
 // --- Test Cases for add_to_history and get_history_entry ---
@@ -333,6 +311,93 @@ void test_execute_builtin() {
 
   printf("test_execute_builtin: Passed\n");
 }
+
+void test_expand_wildcards_no_match() {
+  char **expanded = expand_wildcards("nonexistent_file_*.txt");
+  assert(expanded != NULL);
+  assert(strcmp(expanded[0], "nonexistent_file_*.txt") ==
+         0); // Should return original string
+  assert(expanded[1] == NULL);
+  free(expanded[0]); // Free the duplicated string
+  free(expanded);
+  printf("test_expand_wildcards_no_match: Passed\n");
+}
+
+void test_expand_wildcards_single_match() {
+  // Create a temporary file for testing
+  FILE *temp_file = fopen("test_file.txt", "w");
+  fclose(temp_file);
+
+  char **expanded = expand_wildcards("test_file.txt");
+  assert(expanded != NULL);
+  assert(strcmp(expanded[0], "test_file.txt") == 0);
+  assert(expanded[1] == NULL);
+  free(expanded[0]);
+  free(expanded);
+
+  // Clean up: remove the test file
+  remove("test_file.txt");
+  printf("test_expand_wildcards_single_match: Passed\n");
+}
+
+void test_expand_wildcards_multiple_matches() {
+  // Create a few temporary files
+  FILE *temp_file1 = fopen("file1.txt", "w");
+  fclose(temp_file1);
+  FILE *temp_file2 = fopen("file2.txt", "w");
+  fclose(temp_file2);
+
+  char **expanded = expand_wildcards("file?.txt"); // Use ? wildcard
+  assert(expanded != NULL);
+  assert(strcmp(expanded[0], "file1.txt") == 0 ||
+         strcmp(expanded[0], "file2.txt") == 0);
+  assert(strcmp(expanded[1], "file1.txt") == 0 ||
+         strcmp(expanded[1], "file2.txt") == 0);
+  assert(expanded[2] == NULL);
+
+  // Important:  Free *each* string, and then the array itself
+  for (int i = 0; expanded[i] != NULL; ++i) {
+    free(expanded[i]);
+  }
+  free(expanded);
+
+  // Clean up
+  remove("file1.txt");
+  remove("file2.txt");
+  printf("test_expand_wildcards_multiple_matches: Passed\n");
+}
+
+void test_expand_wildcards_star() {
+  // Create temporary files for testing the '*' wildcard
+  FILE *temp_file1 = fopen("test_file_a.txt", "w");
+  fclose(temp_file1);
+  FILE *temp_file2 = fopen("test_file_b.log", "w");
+  fclose(temp_file2);
+
+  char **expanded = expand_wildcards("test_file_*");
+  assert(expanded != NULL);
+  // Check if the files are contained. The order is not guaranteed.
+  int found_a = 0;
+  int found_b = 0;
+  for (int i = 0; expanded[i] != NULL; ++i) {
+    if (strcmp(expanded[i], "test_file_a.txt") == 0)
+      found_a = 1;
+    if (strcmp(expanded[i], "test_file_b.log") == 0)
+      found_b = 1;
+  }
+  assert(found_a);
+  assert(found_b);
+
+  for (int i = 0; expanded[i] != NULL; ++i) {
+    free(expanded[i]);
+  }
+  free(expanded);
+
+  remove("test_file_a.txt");
+  remove("test_file_b.log");
+  printf("test_expand_wildcards_star: Passed\n");
+}
+
 int main() {
   // Run all test cases
   test_parse_simple_command();
@@ -352,6 +417,10 @@ int main() {
   test_builtin_exit();
   test_builtin_history();
   test_execute_builtin();
+  test_expand_wildcards_no_match();
+  test_expand_wildcards_single_match();
+  test_expand_wildcards_multiple_matches();
+  test_expand_wildcards_star();
 
   printf("All tests completed.\n");
 

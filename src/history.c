@@ -8,13 +8,11 @@
 #include <unistd.h>
 
 char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
-int history_count;
+int history_count = 0;
 
 void add_to_history(char *command, char history[][MAX_INPUT_SIZE],
                     int *history_count, int *current_history_index) {
-  // We handle the new line characters here.
   if (strlen(command) > 0 && strcmp(command, "\n") != 0) {
-    // Remove trailing newline (if present)
     command[strcspn(command, "\n")] = 0;
     strcpy(history[(*history_count) % MAX_HISTORY_SIZE], command);
 

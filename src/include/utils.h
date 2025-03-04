@@ -21,5 +21,6 @@ Command *parse_command(char *input);
 void free_command(Command *cmd);
 void free_args(char **args);
 void print_error(const char *message);
+char **expand_wildcards(const char *arg);
 
 #endif // !UTILS_H

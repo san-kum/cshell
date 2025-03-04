@@ -1,4 +1,5 @@
 #include "include/utils.h"
+#include <glob.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,17 +118,21 @@ Command *parse_command(char *input) {
         break;
 
       } else {
-        if (cmd->argc < MAX_ARGS - 1) {
-          cmd->args[cmd->argc++] = strdup(token);
-          if (!cmd->args[cmd->argc - 1]) {
-            perror("strdup failed");
-            free_command(cmd);
-            free_command(head);
-            free(input_copy);
-            exit(EXIT_FAILURE);
+        char **expanded_args = expand_wildcards(token);
+        if (expanded_args) {
+          for (int i = 0; expanded_args[i] != NULL; i++) {
+            if (cmd->argc < MAX_ARGS - 1) {
+              cmd->args[cmd->argc++] = expanded_args[i];
+            } else {
+              print_error("Too many arguments");
+              free_command(cmd);
+              free_command(head);
+              free(input_copy);
+              return NULL;
+            }
           }
+          free(expanded_args);
         } else {
-          print_error("Too many arguments");
           free_command(cmd);
           free_command(head);
           free(input_copy);
@@ -149,6 +154,58 @@ Command *parse_command(char *input) {
 
   free(input_copy);
   return head;
+}
+
+char **expand_wildcards(const char *arg) {
+  glob_t glob_result;
+  int flags = GLOB_NOCHECK | GLOB_TILDE;
+  int ret = glob(arg, flags, NULL, &glob_result);
+
+  if (ret != 0) {
+    if (ret == GLOB_NOMATCH) {
+      char **result = malloc(2 * sizeof(char *));
+      if (!result) {
+        perror("malloc failed");
+        exit(EXIT_FAILURE);
+      }
+      result[0] = strdup(arg);
+      if (!result[0]) {
+        perror("strdup failed");
+        exit(EXIT_FAILURE);
+      }
+      result[1] = NULL;
+      return result;
+    } else if (ret == GLOB_NOSPACE) {
+      perror("glob faild: Out of memory");
+      exit(EXIT_FAILURE);
+    } else {
+      fprintf(stderr, "glob error: %d\n", ret);
+      return NULL;
+    }
+  }
+  char **expanded_args = malloc((glob_result.gl_pathc + 1) * sizeof(char *));
+  if (!expanded_args) {
+    perror("malloc failed");
+    globfree(&glob_result);
+    exit(EXIT_FAILURE);
+  }
+
+  for (size_t i = 0; i < glob_result.gl_pathc; i++) {
+    expanded_args[i] = strdup(glob_result.gl_pathv[i]);
+    if (!expanded_args[i]) {
+      perror("strdup failed");
+      for (size_t j = 0; j < i; j++) {
+        free(expanded_args[j]);
+      }
+      free(expanded_args);
+      globfree(&glob_result);
+      exit(EXIT_FAILURE);
+    }
+  }
+  expanded_args[glob_result.gl_pathc] = NULL;
+
+  globfree(&glob_result);
+  return expanded_args;
 }
 
 void free_command(Command *cmd) {
