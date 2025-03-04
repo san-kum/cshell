@@ -1,7 +1,10 @@
 #include "include/utils.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define MAX_ARGS 64
 #define DELIMITERS " \t\r\n\a" // Whitespace delimeters
@@ -19,7 +22,7 @@ Command *parse_command(char *input) {
 
   token = strtok(input_copy, DELIMITERS);
 
-  if (token == NULL) { // Handle empty input *before* allocating a Command
+  if (token == NULL) {
     free(input_copy);
     return NULL;
   }
@@ -41,17 +44,16 @@ Command *parse_command(char *input) {
     cmd->argc = 0;
     cmd->next = NULL;
 
-    // Parse tokens for this command
     while (token != NULL) {
       if (strcmp(token, "|") == 0) {
         token = strtok(NULL, DELIMITERS);
-        break; // Exit inner loop, proceed to next command
+        break;
       } else if (strcmp(token, ">") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
           print_error("Syntax Error: Expected file name after >");
           free_command(cmd);
-          free_command(head); // Free previously allocated commands
+          free_command(head);
           free(input_copy);
           return NULL;
         }
@@ -60,14 +62,14 @@ Command *parse_command(char *input) {
           perror("strdup failed");
           exit(EXIT_FAILURE);
         }
-        token = strtok(NULL, DELIMITERS); // Get next token *after* filename
-        break;                            // Stop parsing arguments after >
+        token = strtok(NULL, DELIMITERS);
+        break;
       } else if (strcmp(token, "<") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
           print_error("Syntax Error: Expected file name after <");
           free_command(cmd);
-          free_command(head); // Free previously allocated commands
+          free_command(head);
           free(input_copy);
           return NULL;
         }
@@ -76,7 +78,7 @@ Command *parse_command(char *input) {
           perror("strdup failed");
           exit(EXIT_FAILURE);
         }
-        token = strtok(NULL, DELIMITERS); // Continue parsing arguments
+        token = strtok(NULL, DELIMITERS);
       } else if (strcmp(token, ">>") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
@@ -92,8 +94,8 @@ Command *parse_command(char *input) {
           exit(EXIT_FAILURE);
         }
         cmd->append = 1;
-        token = strtok(NULL, DELIMITERS); // Get next token *after* the filename
-        break;                            // Stop parsing arguments after >>
+        token = strtok(NULL, DELIMITERS);
+        break;
 
       } else {
         if (cmd->argc < MAX_ARGS - 1) {
@@ -105,14 +107,14 @@ Command *parse_command(char *input) {
         } else {
           print_error("Too many arguments");
           free_command(cmd);
-          free_command(head); // Free previously allocated commands
+          free_command(head);
           free(input_copy);
           return NULL;
         }
         token = strtok(NULL, DELIMITERS);
       }
     }
-    cmd->args[cmd->argc] = NULL; // Always null-terminate args
+    cmd->args[cmd->argc] = NULL;
 
     if (head == NULL) {
       head = cmd;
@@ -121,9 +123,6 @@ Command *parse_command(char *input) {
       tail->next = cmd;
       tail = cmd;
     }
-    // If token is currently NULL, we don't want to call strtok again in the
-    // outer loop. We only want to call strtok if there are more commands to
-    // process (indicated by token not being NULL after parsing a pipe)
   }
 
   free(input_copy);
@@ -153,4 +152,40 @@ void free_args(char **args) {
 
 void print_error(const char *message) {
   fprintf(stderr, "cshell: %s\n", message);
+}
+
+void add_to_history(char *command, char (*history)[1024], int *history_count,
+                    int *current_history_index) {
+  if (strlen(command) > 0) {
+    strcpy(history[(*history_count) % MAX_HISTORY_SIZE], command);
+    (*history_count)++;
+    *current_history_index = *history_count;
+  }
+}
+
+void print_history(char (*history)[1024], int history_count) {
+  int start =
+      (history_count > MAX_HISTORY_SIZE) ? history_count - MAX_HISTORY_SIZE : 0;
+  for (int i = start; i < history_count; i++)
+    printf("%d %s\n", i + 1, history[i % MAX_HISTORY_SIZE]);
+}
+
+char *get_history_entry(char (*history)[1024], int history_count, int index) {
+  if (history_count == 0)
+    return NULL;
+
+  int real_index = index % MAX_HISTORY_SIZE;
+  if (real_index < 0 || real_index >= history_count)
+    return NULL;
+
+  if (history_count <= MAX_HISTORY_SIZE) {
+    if (index < 0 || index >= history_count)
+      return NULL;
+  } else {
+    int oldest_index = (history_count) % MAX_HISTORY_SIZE;
+    if (index < history_count - MAX_HISTORY_SIZE)
+      return NULL;
+  }
+
+  return history[real_index];
 }
