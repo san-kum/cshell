@@ -17,6 +17,9 @@ struct Command {
   Command *next;
 };
 
+extern char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
+extern int history_count;
+
 Command *parse_command(char *input);
 void free_command(Command *cmd);
 void free_args(char **args);

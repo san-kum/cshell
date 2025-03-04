@@ -11,6 +11,9 @@
 
 #define MAX_INPUT_SIZE 1024
 
+char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
+int history_count = 0;
+
 void sigint_handler(int signo) {
   (void)signo;
   printf("\n");
@@ -23,8 +26,6 @@ int main() {
   int status;
 
   // --- Command History ---
-  char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
-  int history_count = 0;
   int current_history_index = 0;
 
   if (signal(SIGINT, sigint_handler) == SIG_ERR) {

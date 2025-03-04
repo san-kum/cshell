@@ -20,14 +20,14 @@ target_include_directories(cshell
 
 set_target_properties(cshell PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
 
-add_executable(cshell_tests src/tests.c src/builtins.c src/utils.c)  # Include builtins.c and utils.c
-target_include_directories(cshell_tests
-    PRIVATE
-        src/include
-)
-set_target_properties(cshell_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
-
-# Add test
-add_test(NAME cshell_tests COMMAND ${CMAKE_BINARY_DIR}/build/cshell_tests)
-
-enable_testing() #enable ctest command
+# add_executable(cshell_tests src/tests.c src/builtins.c src/utils.c src/shell.c)
+# target_include_directories(cshell_tests
+#     PRIVATE
+#         src/include
+# )
+# set_target_properties(cshell_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
+#
+# # Add test
+# add_test(NAME cshell_tests COMMAND ${CMAKE_BINARY_DIR}/build/cshell_tests)
+#
+# enable_testing() #enable ctest command

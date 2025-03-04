@@ -26,7 +26,6 @@ Command *parse_command(char *input) {
     free(input_copy);
     return NULL;
   }
-
   while (token != NULL) {
     Command *cmd = malloc(sizeof(Command));
     if (!cmd) {
@@ -36,6 +35,9 @@ Command *parse_command(char *input) {
     cmd->args = malloc(MAX_ARGS * sizeof(char *));
     if (!cmd->args) {
       perror("malloc failed");
+      free(cmd);
+      free_command(head);
+      free(input_copy);
       exit(EXIT_FAILURE);
     }
     cmd->input_file = NULL;
@@ -60,10 +62,14 @@ Command *parse_command(char *input) {
         cmd->output_file = strdup(token);
         if (!cmd->output_file) {
           perror("strdup failed");
+          // Clean up and exit.
+          free_command(cmd);
+          free_command(head);
+          free(input_copy);
           exit(EXIT_FAILURE);
         }
         token = strtok(NULL, DELIMITERS);
-        break;
+        break; // Stop parsing arguments
       } else if (strcmp(token, "<") == 0) {
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
@@ -74,12 +80,20 @@ Command *parse_command(char *input) {
           return NULL;
         }
         cmd->input_file = strdup(token);
+
         if (!cmd->input_file) {
           perror("strdup failed");
+          // Clean up and exit.
+          free_command(cmd);
+          free_command(head);
+          free(input_copy);
           exit(EXIT_FAILURE);
         }
-        token = strtok(NULL, DELIMITERS);
+
+        token = strtok(NULL, DELIMITERS); // Get next
+
       } else if (strcmp(token, ">>") == 0) {
+
         token = strtok(NULL, DELIMITERS);
         if (token == NULL) {
           print_error("Syntax error: Expected filename after >>");
@@ -88,9 +102,15 @@ Command *parse_command(char *input) {
           free(input_copy);
           return NULL;
         }
+
         cmd->output_file = strdup(token);
+
         if (!cmd->output_file) {
           perror("strdup failed");
+          // Clean up and exit.
+          free_command(cmd);
+          free_command(head);
+          free(input_copy);
           exit(EXIT_FAILURE);
         }
         cmd->append = 1;
@@ -102,6 +122,9 @@ Command *parse_command(char *input) {
           cmd->args[cmd->argc++] = strdup(token);
           if (!cmd->args[cmd->argc - 1]) {
             perror("strdup failed");
+            free_command(cmd);
+            free_command(head);
+            free(input_copy);
             exit(EXIT_FAILURE);
           }
         } else {
@@ -154,23 +177,25 @@ void print_error(const char *message) {
   fprintf(stderr, "cshell: %s\n", message);
 }
 
-void add_to_history(char *command, char (*history)[1024], int *history_count,
-                    int *current_history_index) {
-  if (strlen(command) > 0) {
+void add_to_history(char *command, char history[][MAX_INPUT_SIZE],
+                    int *history_count, int *current_history_index) {
+  if (strlen(command) > 0 && strcmp(command, "\n") != 0) {
+    command[strcspn(command, "\n")] = 0;
     strcpy(history[(*history_count) % MAX_HISTORY_SIZE], command);
     (*history_count)++;
     *current_history_index = *history_count;
   }
 }
 
-void print_history(char (*history)[1024], int history_count) {
+void print_history(char history[][MAX_INPUT_SIZE], int history_count) {
   int start =
       (history_count > MAX_HISTORY_SIZE) ? history_count - MAX_HISTORY_SIZE : 0;
   for (int i = start; i < history_count; i++)
     printf("%d %s\n", i + 1, history[i % MAX_HISTORY_SIZE]);
 }
 
-char *get_history_entry(char (*history)[1024], int history_count, int index) {
+char *get_history_entry(char history[][MAX_INPUT_SIZE], int history_count,
+                        int index) {
   if (history_count == 0)
     return NULL;
 
@@ -188,7 +213,7 @@ char *get_history_entry(char (*history)[1024], int history_count, int index) {
   return history[real_index];
 }
 
-int get_input(char *buffer, char (*history)[1024], int *history_count,
+int get_input(char *buffer, char history[][MAX_INPUT_SIZE], int *history_count,
               int *current_history_index) {
   static struct termios old_termios, new_termios;
 
@@ -206,10 +231,11 @@ int get_input(char *buffer, char (*history)[1024], int *history_count,
 
     if (ch == EOF || ch == '\n') {
       buffer[i] = '\0';
+      putchar('\n');
       break;
     } else if (ch == 127 || ch == 8) {
       if (i > 0) {
-        printf("\b  \b");
+        printf("\b \b");
         fflush(stdout);
         i--;
       }
@@ -261,6 +287,9 @@ int get_input(char *buffer, char (*history)[1024], int *history_count,
       }
     }
   }
+
+  buffer[i] = '\0';
+
   tcsetattr(STDIN_FILENO, TCSANOW, &old_termios);
   return i;
 }

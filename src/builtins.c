@@ -5,8 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 
-extern char history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
-extern int history_count;
 
 int builtin_history(char **args) {
   (void)args;
@@ -51,6 +49,7 @@ int builtin_help(char **args) {
 }
 
 int executable_builtin(char **args, int argc) {
+  (void)argc;
   if (strcmp(args[0], "cd") == 0)
     return builtin_cd(args);
   else if (strcmp(args[0], "exit") == 0)
