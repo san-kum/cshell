@@ -1,6 +1,7 @@
 #include "include/history.h"
 #include "utils.h"
 #include <ctype.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

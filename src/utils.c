@@ -9,6 +9,14 @@
 #define MAX_ARGS 64
 #define DELIMITERS " \t\r\n\a" // Whitespace delimeters
 
+void reset_input_line(char *buffer, int *i) {
+  printf("\n");
+  printf("cshell> ");
+  fflush(stdout);
+  buffer[0] = '\0';
+  *i = 0;
+}
+
 Command *parse_command(char *input) {
   Command *head = NULL;
   Command *tail = NULL;
