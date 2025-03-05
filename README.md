@@ -100,6 +100,10 @@ Run tests using:
 
 ```bash
 ./build/build/cshell_tests
+
+# or use ctest
+ctest
+ctest -V # for verbose output
 ```
 
 ## Limitations and Future Improvements
