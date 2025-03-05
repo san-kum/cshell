@@ -1,116 +1,123 @@
-# cshell - A Simple C Shell
+# CShell: A Custom Unix-Like Shell Implementation
 
-`cshell` is a simple command-line shell written in C. It demonstrates fundamental concepts of operating systems, including process creation, input/output redirection, and basic command parsing. It is intended as an educational project and is not a full-featured replacement for shells like `bash` or `zsh`.
+## Project Overview
+
+CShell is a custom Unix-like shell implemented in C, designed to provide a robust and feature-rich command-line interface. This project demonstrates a deep understanding of system programming, process management, and shell functionality by implementing core shell behaviors from scratch.
 
 ## Features
 
-- **Execution of External Commands:** `cshell` can execute external programs found in the system's `PATH`.
-- **Built-in Commands:**
-  - `cd <directory>`: Changes the current working directory. If no directory is specified, it changes to the home directory (`$HOME`).
-  - `exit`: Terminates the shell.
-  - `help`: Displays a brief help message listing the available built-in commands.
-- **Input/Output Redirection:**
-  - `command > file`: Redirects the standard output of `command` to `file`, overwriting it if it exists or creating it if it doesn't.
-  - `command < file`: Redirects the standard input of `command` to come from `file`.
-  - `command >> file`: Redirects the standard output of `command` to `file`, appending to it if it exists or creating it if it doesn't.
-- **Basic Error Handling:** The shell provides basic error messages for common issues like invalid commands, failed `fork`, `execvp`, `open`, `chdir` and file operations.
-- **Empty input handling**: Shell handles empty lines gracefully.
+### Command Execution
 
-## Usage
+- Execute external commands using `execvp()`
+- Support for complex command pipelines
+- Input and output redirection
+  - `>` for output redirection
+  - `<` for input redirection
+  - `>>` for append output redirection
 
-1.  **Compilation:**
+### Built-in Commands
 
-    ```bash
-    mkdir build && cd build
-    cmake ..
-    make
-    ```
+- `cd`: Change current working directory
+- `exit`: Terminate the shell
+- `help`: Display available commands and help information
+- `history`: View command history
 
-    This will create an executable named `cshell` inside a `build` directory.
+### Advanced Capabilities
 
-2.  **Running the Shell:**
+- Command history with navigation (up/down arrow keys)
+- Signal handling for `SIGINT` (Ctrl+C) and `SIGTSTP` (Ctrl+Z)
+- Wildcard expansion using `glob()`
+- Basic scripting support with control structures
 
-    ```bash
-    ./build/cshell
-    ```
+## Technical Architecture
 
-3.  **Entering Commands:**
+### Key Components
 
-    At the `cshell>` prompt, type a command and its arguments, then press Enter.
+1. **Command Parsing** (`utils.c`)
 
-    **Examples:**
+   - Tokenizes input into command structures
+   - Handles pipes, redirections, and argument parsing
+   - Supports wildcard expansion
 
-    ```bash
-    cshell> ls -l
-    cshell> pwd
-    cshell> cd /tmp
-    cshell> echo "Hello, world!" > greeting.txt
-    cshell> cat < greeting.txt
-    cshell> date >> log.txt
-    cshell> help
-    cshell> exit
-    ```
+2. **History Management** (`history.c`)
 
-## Project Structure
+   - Circular buffer for storing command history
+   - Advanced input handling with history navigation
+   - Supports retrieving and displaying past commands
 
-The project is organized into the following files and directories:
+3. **Built-in Commands** (`builtins.c`)
 
-- **`src/`:** Contains the source code.
-  - `myshell.c`: The main shell program, including the main loop, command execution logic, and process management.
-  - `builtins.c`: Implementation of built-in commands (`cd`, `exit`, `help`).
-  - `utils.c`: Utility functions for parsing commands and handling errors.
-  - `include/`: Contains header files.
-    - `builtins.h`: Declarations for built-in functions.
-    - `utils.h`: Declarations for utility functions.
-- **`build/`:** Directory for storing compiled object files and the final executable (created by `make`).
-- **`CMakeLists.txt`:** CMake configuration file for building the project.
-- **`README.md`:** This documentation file.
-- **`LICENSE`**: License file.
+   - Implements shell-specific commands
+   - Provides core shell functionality
 
-## Design
+4. **Scripting Support** (`scripting.c`)
+   - Basic script parsing and execution
+   - Supports control structures like `if`, `while`
+   - Variable management within scripts
 
-### 1. Main Loop (`shell.c`)
+### Signal Handling
 
-The shell operates in a continuous loop:
+- `SIGINT`: Interrupt current foreground process
+- `SIGCHLD`: Manage child process termination
+- `SIGTSTP`: Stop foreground process
 
-1.  **Display Prompt:** Prints `cshell> ` to the console.
-2.  **Read Input:** Reads a line of input from the user using `fgets()`.
-3.  **Parse Input:** The `parse_command()` function (in `utils.c`) splits the input line into a command and its arguments. It also handles redirection (`>`, `<`, `>>`) by identifying the redirection operators and associated filenames. The result is a `Command` struct.
-4.  **Built-in Command Check:** The `execute_builtin()` function (in `builtins.c`) checks if the command is a built-in command (`cd`, `exit`, or `help`). If so, the corresponding function is executed directly within the shell process.
-5.  **External Command Execution:** If the command is _not_ a built-in:
+## Compilation and Running
 
-    - **Fork:** The shell creates a child process using `fork()`.
-    - **Redirection (Child Process):**
-      - If input redirection (`<`) is specified, the child process opens the input file using `open()` and uses `dup2()` to redirect standard input (file descriptor 0) to the opened file.
-      - If output redirection (`>` or `>>`) is specified, the child process opens the output file (with appropriate flags for overwriting or appending) and uses `dup2()` to redirect standard output (file descriptor 1) to the opened file.
-      - The opened file descriptors from `open()` are closed using `close()` _after_ being duplicated.
-    - **Exec:** The child process uses `execvp()` to replace its process image with the specified external command.
-    - **Wait (Parent Process):** The parent process (the shell) waits for the child process to complete using `waitpid()`.
+### Prerequisites
 
-6.  **Free Memory:** The memory allocated for parsing is released with the call to `free_command`.
+- GCC or Clang compiler
+- UNIX-like operating system (Linux, macOS)
+- Make utility
 
-### 2. Built-in Commands (`builtins.c`)
+### Build Instructions
 
-Built-in commands are implemented as functions that directly modify the shell's state (e.g., `cd` changes the current working directory using `chdir()`). They are executed within the main shell process, _not_ in a child process.
+```bash
+# Clone the repository
+git clone https://github.com/san-kum/cshell.git
+cd cshell
 
-### 3. Utility Functions (`utils.c`)
+mkdir build && cd build
 
-- **`parse_command(char* input)`:** Parses the input string, handles redirection, and returns a `Command` structure containing the command, arguments, and redirection information.
-- **`free_command(Command* cmd)`:** Deallocates all the memory allocated for `Command` struct and its members.
-- **`free_args(char** args)`: Frees the memory allocated for an array of strings. This function is reused by the `free_command`.
-- **`print_error(const char* message)`:** Prints an error message to standard error.
+# Compile the project
+cmake ..
+make
 
-### 4. Data Structures
+# Run the shell
+./build/build/cshell
+```
 
-- **`Command` (in `utils.c`):**
-  ```c
-  typedef struct {
-      char** args;      // Array of arguments
-      int argc;        // Number of arguments
-      char* input_file;  // Input redirection file (NULL if none)
-      char* output_file; // Output redirection file (NULL if none)
-      int append;      // 1 if output should be appended (>>), 0 otherwise
-  } Command;
-  ```
-  This structure encapsulates all information about a single command.
+## Testing
 
+The project includes a comprehensive test suite (`tests.c`) covering:
+
+- Command parsing
+- Built-in command functionality
+- History management
+- Wildcard expansion
+- Error handling
+
+Run tests using:
+
+```bash
+./build/build/cshell_tests
+```
+
+## Limitations and Future Improvements
+
+- Enhanced scripting capabilities
+- More robust error handling
+- Support for environment variable expansion
+- Advanced tab completion
+- Multi-line command support
+
+## Learning Objectives
+
+- System programming in C
+- Process management
+- Unix shell internals
+- Input/output redirection mechanisms
+- Signal handling techniques
+
+## Author
+
+[https://github.com/san-kum]
