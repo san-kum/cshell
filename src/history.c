@@ -1,7 +1,6 @@
 #include "include/history.h"
 #include "utils.h"
 #include <ctype.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -149,10 +148,8 @@ int get_input(char *buffer, char history[][MAX_INPUT_SIZE], int *history_count,
         break;
       }
     }
-    // Ignore other control characters.
   }
 
-  // *** ADD THIS: Append a newline character ***
   buffer[i++] = '\n'; // Add the newline
   buffer[i] = '\0';   // Null-terminate *after* the newline
 

@@ -9,10 +9,6 @@
 #include <string.h>
 #include <unistd.h>
 
-// --- Helper functions for tests ----
-
-// --- Test Cases for parse_command ---
-
 void test_parse_simple_command() {
   Command *cmd = parse_command("ls");
   assert(cmd != NULL);
@@ -150,7 +146,6 @@ void test_parse_error_handling() {
   assert(cmd == NULL);
   printf("test_parse_error_handling: Passed\n");
 }
-// --- Test Cases for add_to_history and get_history_entry ---
 
 void test_history_add_and_get() {
   char test_history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE];
@@ -174,7 +169,6 @@ void test_history_circular_buffer() {
   int test_history_count = 0;
   int current_index = 0;
 
-  // Fill the history
   for (int i = 0; i < MAX_HISTORY_SIZE + 5; i++) {
     char command[20];
     sprintf(command, "command%d", i);
@@ -190,16 +184,12 @@ void test_history_circular_buffer() {
   printf("test_history_circular_buffer: Passed\n");
 }
 
-// --- Test Cases for get_input (Basic) ---
-// Full terminal input testing is difficult in a unit test.
-
 void test_get_input_basic() {
   char buffer[MAX_INPUT_SIZE];
   char test_history[MAX_HISTORY_SIZE][MAX_INPUT_SIZE]; // Dummy history.
   int test_history_count = 0;
   int current_history_index = 0;
 
-  // Simulate typing "hello\n" into stdin
   FILE *input_stream = fmemopen("hello\n", 6, "r");
   stdin = input_stream; // Redirect stdin
 
@@ -231,32 +221,19 @@ void test_builtin_cd() {
 
   char full_test_dir_path[PATH_MAX];
 
-  // Resolve the real path, to ensure testing when using relative paths.
   realpath(test_dir_name, full_test_dir_path);
   assert(strcmp(new_dir, full_test_dir_path) == 0);
 
-  // Restore the previous directory.
   char *args_restore[] = {"cd", original_dir, NULL};
   assert(builtin_cd(args_restore) == 0);
 
-  // Clean up: remove the test directory
   rmdir(test_dir_name);
 
   free(original_dir);
   free(new_dir);
   printf("test_builtin_cd: Passed\n");
 }
-void test_builtin_exit() {
-  // Test exiting (we can't directly assert this in a simple way,
-  // as it would terminate the test process.  We'll rely on
-  // manual observation and the fact that the shell exits cleanly).
-  // We'll just *call* it and, if the test program continues, that's a problem.
-  // char* args[] = {"exit", NULL};
-  // builtin_exit(args);
-  // If we reach this point, exit() didn't work!
-  // assert(0 && "builtin_exit failed to exit!"); // This will always fail.
-  printf("test_builtin_exit: Check Manually\n");
-}
+void test_builtin_exit() { printf("test_builtin_exit: Check Manually\n"); }
 
 void test_builtin_history() {
 
@@ -266,7 +243,6 @@ void test_builtin_history() {
 
   add_to_history("command1", test_history, &test_history_count, &current_index);
   add_to_history("command2", test_history, &test_history_count, &current_index);
-  // Redirect stdout to a buffer.
   int stdout_copy = dup(STDOUT_FILENO); // Save stdout
   char buffer[1024];
   int fd =
@@ -276,38 +252,32 @@ void test_builtin_history() {
   char *args[] = {"history", NULL};
   builtin_history(args);
 
-  // restore stdout
   dup2(stdout_copy, STDOUT_FILENO);
   close(stdout_copy);
   close(fd);
 
-  // Read content
   FILE *file = fopen("test_output.txt", "r");
   assert(file != NULL);
   size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, file);
   buffer[bytes_read] = '\0';
   fclose(file);
 
-  // Verify content
   assert(strstr(buffer, "command1") != NULL);
   assert(strstr(buffer, "command2") != NULL);
 
-  // Remove file
   remove("test_output.txt");
   printf("test_builtin_history: Passed\n");
 }
 
 void test_execute_builtin() {
 
-  // Test valid built-in
   char *args_cd[] = {"cd", "..", NULL};
   int ret_cd = executable_builtin(args_cd, 2);
   assert(ret_cd == 0); // cd returns 0 on success.
 
-  // test invalid built in
   char *args_invalid[] = {"invalid_command", NULL};
   int ret_inv = executable_builtin(args_invalid, 1);
-  assert(ret_inv == -1); // not a built-in.
+  assert(ret_inv == -1);
 
   printf("test_execute_builtin: Passed\n");
 }
@@ -324,7 +294,6 @@ void test_expand_wildcards_no_match() {
 }
 
 void test_expand_wildcards_single_match() {
-  // Create a temporary file for testing
   FILE *temp_file = fopen("test_file.txt", "w");
   fclose(temp_file);
 
@@ -335,7 +304,6 @@ void test_expand_wildcards_single_match() {
   free(expanded[0]);
   free(expanded);
 
-  // Clean up: remove the test file
   remove("test_file.txt");
   printf("test_expand_wildcards_single_match: Passed\n");
 }
